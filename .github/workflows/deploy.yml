@@ -1,0 +1,55 @@
+name: Deploy Website to S3
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Test, Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test website files
+        run: |
+          test -f index.html
+          test -f style.css
+          test -f script.js
+          grep -q "<html" index.html
+          grep -q "style.css" index.html
+          grep -q "script.js" index.html
+          echo "Website validation successful"
+
+      - name: Build website package
+        run: |
+          rm -rf dist
+          mkdir dist
+
+          cp index.html dist/
+          cp style.css dist/
+          cp script.js dist/
+
+          echo "Build/package completed"
+          ls -la dist
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://${{ vars.S3_BUCKET }} --delete
+
+      - name: Deployment successful
+        run: echo "Website deployed successfully"
